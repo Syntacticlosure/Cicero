@@ -36,8 +36,8 @@ impl<'a, L: Lattice> Node<'a, L> {
 pub trait Lattice: Eq + Clone {
     fn join(a: &Self, b: &Self) -> Self;
     fn bottom() -> Self;
-    fn top() -> Self;
 }
+
 
 pub struct NodePool<'a, L: Lattice> {
     nodes: Vec<Node<'a, L>>,
@@ -81,6 +81,7 @@ impl<'a, L: Lattice> NodePool<'a, L> {
         self.nodes[to].predecessors.push(from);
     }
 
+    
     fn construct_atom(&mut self, a: &'a Atom) {
         match a {
             Atom::Lam(label, _args, body) => {
@@ -186,6 +187,7 @@ impl<'a, L: Lattice> NodePool<'a, L> {
     }
 
     pub fn run_worklist(&mut self) {
+        self.worklist = (0..self.nodes.len()).collect();
         while !self.worklist.is_empty() {
             let Some(node) = self.worklist.pop() else {
                 unreachable!()

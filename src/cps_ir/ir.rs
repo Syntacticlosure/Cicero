@@ -1,6 +1,6 @@
 use super::Atom;
 use std::{cell::RefCell, rc::Rc};
-#[derive(Debug)]
+#[derive(Debug,Clone,PartialEq,Eq, Hash)]
 pub enum IR {
     LetCont(usize, String, Vec<String>, Box<IR>, Box<IR>),
     Let(usize, String, String, Vec<Atom>, Box<IR>),
@@ -25,7 +25,7 @@ impl IR {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone,PartialEq,Eq, Hash)]
 pub enum Cont {
     Named(String),
     Return,
