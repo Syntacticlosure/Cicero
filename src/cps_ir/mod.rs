@@ -8,7 +8,7 @@ pub mod cfg;
 pub mod analysis;
 
 pub use atom::{Atom, Value};
-pub use ir::{IR,Cont,BuilderExpr,CPSContext,cps,quick_cps};
+pub use ir::{IR,Cont,BuilderExpr,GenTable,cps,quick_cps};
 pub use builtin_call::builtin_call;
 pub use interp::{interp,Store};
 

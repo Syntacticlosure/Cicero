@@ -1,16 +1,24 @@
 // Available Expression Analysis,a must, forward analysis
 // Set(Expression) , /\
 
-use crate::cps_ir::{IR,Atom,cfg};
-use std::collections::HashSet;
+use crate::cps_ir::{cfg::{self, Lattice, NodePool,NodeInfo}, Atom, IR};
+use std::{collections::HashSet, hash::Hash};
 
 #[derive(Debug,Clone,PartialEq,Eq,Hash)]
-pub struct Expression(String, Vec<Atom>); // atom here shouldn't contain Atom::Lam
+pub struct Expression(String, Vec<Atom>); // shouldn't contain Atom::Lam
 
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub enum ExpressionLattice {
     Bot,
     Exprs(HashSet<Expression>)
+}
+
+impl ExpressionLattice{
+    pub fn from(op: String, args: Vec<Atom>) -> Self{
+        let mut a = HashSet::new();
+        a.insert(Expression(op,args)); 
+        ExpressionLattice::Exprs(a)
+    }
 }
 
 impl cfg::Lattice for ExpressionLattice {
@@ -27,6 +35,17 @@ impl cfg::Lattice for ExpressionLattice {
         ExpressionLattice::Bot
     }
 }
+
+pub fn make_analysis<'a>() -> NodePool<'a,ExpressionLattice>  {
+    NodePool::new(true, Box::new(|label,ir, lattice| {
+        match ir{
+            IR::Let(_,var,op,args,_body) => {
+                ExpressionLattice::join(&lattice,&ExpressionLattice::from(op.clone(),args.clone()))
+            }
+            _ => lattice
+        }
+    }))
+}   
 
 
 

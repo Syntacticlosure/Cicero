@@ -96,15 +96,15 @@ impl BuilderExpr {
     }
 }
 
-pub struct CPSContext {
+pub struct GenTable {
     label_count: usize,
     cont_count: usize,
     var_count: usize,
 }
 
-impl CPSContext {
+impl GenTable {
     pub fn new() -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(CPSContext {
+        Rc::new(RefCell::new(GenTable {
             label_count: 0,
             cont_count: 0,
             var_count: 0,
@@ -128,7 +128,7 @@ impl CPSContext {
 }
 
 pub fn cps_vec(
-    ctx: Rc<RefCell<CPSContext>>,
+    ctx: Rc<RefCell<GenTable>>,
     mut v: Vec<BuilderExpr>,
     k: Box<dyn FnOnce(Vec<Atom>) -> IR>,
 ) -> IR {
@@ -154,7 +154,7 @@ pub fn cps_vec(
     }
 }
 
-pub fn cps_lam(ctx: Rc<RefCell<CPSContext>>, term: BuilderExpr) -> Atom {
+pub fn cps_lam(ctx: Rc<RefCell<GenTable>>, term: BuilderExpr) -> Atom {
     match term {
         BuilderExpr::Lam(args, body) =>{ 
             let label = ctx.borrow_mut().alloc_label();
@@ -174,11 +174,11 @@ pub fn cps_lam(ctx: Rc<RefCell<CPSContext>>, term: BuilderExpr) -> Atom {
 }
 
 pub fn quick_cps(t : BuilderExpr) -> IR{ 
-    let ctx = CPSContext::new();
+    let ctx = GenTable::new();
     let label = ctx.borrow_mut().alloc_label();
     cps(ctx,t, Box::new(move |r| IR::AppCont(label, Cont::Return ,vec![r])))
 }
-pub fn cps(ctx: Rc<RefCell<CPSContext>>, term: BuilderExpr, k: Box<dyn FnOnce(Atom) -> IR>) -> IR {
+pub fn cps(ctx: Rc<RefCell<GenTable>>, term: BuilderExpr, k: Box<dyn FnOnce(Atom) -> IR>) -> IR {
     match term {
         BuilderExpr::Var(v) => k(Atom::Var(v)),
         BuilderExpr::I32(v) => k(Atom::I32(v)),

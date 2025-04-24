@@ -44,7 +44,7 @@ pub struct NodePool<'a, L: Lattice> {
     worklist: Vec<usize>,
     direction: bool, // true = foward analysis
     // false = backward analysis
-    constraint_fun: Box<dyn FnMut(NodeInfo<'a>, L) -> L>,
+    constraint_fun: Box<dyn FnMut(usize,&'a IR, L) -> L>,
     fun_entry_table: HashMap<usize, usize>,
     fun_exit_table: HashMap<usize, usize>,
     cont_table: HashMap<String, usize>,
@@ -53,7 +53,7 @@ pub struct NodePool<'a, L: Lattice> {
 }
 
 impl<'a, L: Lattice> NodePool<'a, L> {
-    pub fn new(direction: bool, constraint_fun: Box<dyn FnMut(NodeInfo<'a>, L) -> L>) -> Self {
+    pub fn new(direction: bool, constraint_fun: Box<dyn FnMut(usize,&'a IR, L) -> L>) -> Self {
         NodePool {
             nodes: vec![],
             worklist: vec![],
@@ -193,7 +193,13 @@ impl<'a, L: Lattice> NodePool<'a, L> {
                 unreachable!()
             };
             let input = self.nodes[node].result_in.clone();
-            let result = (self.constraint_fun)(self.nodes[node].info.clone(), input);
+            let result = match self.nodes[node].info {
+                NodeInfo::ProgramEntry => input,
+                NodeInfo::ProgramExit => input,
+                NodeInfo::FunEntry(_) =>input,
+                NodeInfo::FunExit(_)=>input,
+                NodeInfo::Common(label,ir) => (self.constraint_fun)(label,ir, input)
+            };
             if &result != &self.nodes[node].result_out {
                 self.nodes[node].result_out = result;
                 let successors = if self.direction {
