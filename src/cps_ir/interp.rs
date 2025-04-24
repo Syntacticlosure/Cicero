@@ -50,7 +50,7 @@ pub fn interp_atom<'a>(
         Atom::Bool(v) => Value::Bool(v.clone()),
         Atom::Char(v) => Value::Char(v.clone()),
         Atom::StringLiteral(v) => Value::StringLiteral(v.clone()),
-        Atom::Lam(args, ir) => Value::Clo(args, ir, env.clone()),
+        Atom::Lam(_label,args, ir) => Value::Clo(args, ir, env.clone()),
     }
 }
 

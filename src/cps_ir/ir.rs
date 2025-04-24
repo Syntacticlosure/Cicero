@@ -11,6 +11,20 @@ pub enum IR {
     AppCont(usize, Cont, Vec<Atom>),
 }
 
+impl IR {
+    pub fn get_label(&self) -> usize{
+        match self {
+            IR::LetCont(label, _, _, _, _ )=> *label,
+            IR::Let(label,_,_,_,_) => *label,
+            IR::LetVal(label,_,_,_) => *label,
+            IR::If(label,_,_,_) => *label,
+            IR::App(label,_,_,_) => *label,
+            IR::Fix(label,_,_,_) => *label,
+            IR::AppCont(label,_,_) => *label
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Cont {
     Named(String),
@@ -142,7 +156,9 @@ pub fn cps_vec(
 
 pub fn cps_lam(ctx: Rc<RefCell<CPSContext>>, term: BuilderExpr) -> Atom {
     match term {
-        BuilderExpr::Lam(args, body) => Atom::Lam(
+        BuilderExpr::Lam(args, body) =>{ 
+            let label = ctx.borrow_mut().alloc_label();
+            Atom::Lam(label,
             args,
             Box::new(cps(
                 ctx.clone(),
@@ -152,7 +168,7 @@ pub fn cps_lam(ctx: Rc<RefCell<CPSContext>>, term: BuilderExpr) -> Atom {
                     IR::AppCont(label, Cont::Return, vec![r])
                 }),
             )),
-        ),
+        )},
         _ => panic!("not a lambda"),
     }
 }

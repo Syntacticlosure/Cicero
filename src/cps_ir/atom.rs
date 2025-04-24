@@ -10,13 +10,13 @@ pub enum Atom {
   Bool(bool),
   Char(char),
   StringLiteral(String),
-  Lam(Vec<String>, Box<IR>),
+  Lam(usize, Vec<String>, Box<IR>),
 }
 
 
 impl Atom{
-  pub fn lam(args: &[&str],body: IR) -> Self {
-    Atom::Lam(args.iter().map(|s| s.to_string()).collect(),Box::new(body))
+  pub fn lam(label:usize, args: &[&str],body: IR) -> Self {
+    Atom::Lam(label,args.iter().map(|s| s.to_string()).collect(),Box::new(body))
   }
   pub fn v(s : &str) -> Self {
     Atom::Var(s.to_string())
