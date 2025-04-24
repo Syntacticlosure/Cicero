@@ -1,6 +1,6 @@
-use super::{ir::quick_cps, BuilderExpr as E};
+use super::{quick_cps, BuilderExpr as E};
 use std::collections::HashMap;
-use super::{Value,CPSContext,cps, interp, IR, Store};
+use super::{Value, interp, IR, Store};
 
 
 fn simple_interp<'a>(ir : &'a IR) -> Value<'a>{
