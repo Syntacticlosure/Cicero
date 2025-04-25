@@ -1,6 +1,8 @@
+use crate::cps_ir::Value;
+
 use super::Atom;
 use std::{cell::RefCell, rc::Rc};
-#[derive(Debug,Clone,PartialEq,Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IR {
     LetCont(usize, String, Vec<String>, Box<IR>, Box<IR>),
     Let(usize, String, String, Vec<Atom>, Box<IR>),
@@ -12,20 +14,115 @@ pub enum IR {
 }
 
 impl IR {
-    pub fn get_label(&self) -> usize{
+    pub fn get_label(&self) -> usize {
         match self {
-            IR::LetCont(label, _, _, _, _ )=> *label,
-            IR::Let(label,_,_,_,_) => *label,
-            IR::LetVal(label,_,_,_) => *label,
-            IR::If(label,_,_,_) => *label,
-            IR::App(label,_,_,_) => *label,
-            IR::Fix(label,_,_,_) => *label,
-            IR::AppCont(label,_,_) => *label
+            IR::LetCont(label, _, _, _, _) => *label,
+            IR::Let(label, _, _, _, _) => *label,
+            IR::LetVal(label, _, _, _) => *label,
+            IR::If(label, _, _, _) => *label,
+            IR::App(label, _, _, _) => *label,
+            IR::Fix(label, _, _, _) => *label,
+            IR::AppCont(label, _, _) => *label,
+        }
+    }
+
+    // normalize a IR, to lift all Let, LetVal, Fix definitions before LetCont
+    pub fn normalize(self) -> Self {
+        let mut lifted_defs = Vec::new();
+        let mut let_cont_defs = Vec::new();
+
+        fn unroll(mut lifted_defs: Vec<IR>, mut let_cont_defs: Vec<IR>, mut base: IR) -> IR {
+            while let_cont_defs.is_empty() {
+                match let_cont_defs.pop() {
+                    Some(IR::LetCont(label, cont_name, args, cont_body, _placeholder)) => {
+                        base = IR::LetCont(label, cont_name, args, cont_body, Box::new(base))
+                    }
+                    _ => unreachable!(),
+                }
+            }
+
+            while lifted_defs.is_empty() {
+                match lifted_defs.pop() {
+                    Some(IR::Let(label, var, op, args, _placeholder)) => {
+                        base = IR::Let(label, var, op, args, Box::new(base))
+                    }
+                    Some(IR::LetVal(label, var, val, _placeholder)) => {
+                        base = IR::LetVal(label, var, val, Box::new(base))
+                    }
+                    Some(IR::Fix(label, vars, vals, _placeholder)) => {
+                        base = IR::Fix(label, vars, vals, Box::new(base))
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            base
+        }
+
+        fn normalize_atom(a: Atom) -> Atom {
+            match a {
+                Atom::Lam(label, args, body) => Atom::Lam(label, args, Box::new(body.normalize())),
+                _ => a,
+            }
+        }
+        fn normalize_atoms(mut a: Vec<Atom>) -> Vec<Atom> {
+            a.drain(..).map(|x| normalize_atom(x)).collect()
+        }
+
+        let mut cursor = self;
+        loop {
+            match cursor {
+                IR::App(label, f, mut args, k) => {
+                    break unroll(
+                        lifted_defs,
+                        let_cont_defs,
+                        IR::App(label, normalize_atom(f), normalize_atoms(args), k),
+                    );
+                }
+                IR::AppCont(label, k, mut args) => {
+                    break unroll(
+                        lifted_defs,
+                        let_cont_defs,
+                        IR::AppCont(label, k, normalize_atoms(args)),
+                    );
+                }
+                IR::If(label, test_, then_, else_) => {
+                    break unroll(
+                        lifted_defs,
+                        let_cont_defs,
+                        IR::If(
+                            label,
+                            normalize_atom(test_),
+                            Box::new(then_.normalize()),
+                            Box::new(else_.normalize()),
+                        ),
+                    );
+                }
+                IR::Fix(label, vars, vals, body) => {
+                    let placeholder = Box::new(IR::AppCont(0, Cont::Return, vec![]));
+                    lifted_defs.push(IR::Fix(label, vars, normalize_atoms(vals), placeholder));
+                    cursor = *body;
+                }
+                IR::Let(label, var, op, args, body) => {
+                    let placeholder = Box::new(IR::AppCont(0, Cont::Return, vec![]));
+                    lifted_defs.push(IR::Let(label, var, op, normalize_atoms(args), placeholder));
+                    cursor = *body;
+                }
+                IR::LetVal(label, var, val, body) => {
+                    let placeholder = Box::new(IR::AppCont(0, Cont::Return, vec![]));
+                    lifted_defs.push(IR::LetVal(label, var, normalize_atom(val), placeholder));
+                    cursor = *body;
+                }
+                IR::LetCont(label, cont_name, args, cont_body, body) => {
+                    let placeholder = Box::new(IR::AppCont(0, Cont::Return, vec![]));
+                    let_cont_defs.push(IR::LetCont(label, cont_name, args, cont_body, placeholder));
+                    cursor = *body;
+                }
+            }
         }
     }
 }
 
-#[derive(Debug,Clone,PartialEq,Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Cont {
     Named(String),
     Return,
@@ -49,7 +146,7 @@ pub enum BuilderExpr {
 }
 
 impl BuilderExpr {
-    pub fn v(v : &str) -> Self{
+    pub fn v(v: &str) -> Self {
         BuilderExpr::Var(v.to_string())
     }
     pub fn i32(v: i32) -> Self {
@@ -156,27 +253,33 @@ pub fn cps_vec(
 
 pub fn cps_lam(ctx: Rc<RefCell<GenTable>>, term: BuilderExpr) -> Atom {
     match term {
-        BuilderExpr::Lam(args, body) =>{ 
+        BuilderExpr::Lam(args, body) => {
             let label = ctx.borrow_mut().alloc_label();
-            Atom::Lam(label,
-            args,
-            Box::new(cps(
-                ctx.clone(),
-                *body,
-                Box::new(move |r| {
-                    let label = ctx.borrow_mut().alloc_label();
-                    IR::AppCont(label, Cont::Return, vec![r])
-                }),
-            )),
-        )},
+            Atom::Lam(
+                label,
+                args,
+                Box::new(cps(
+                    ctx.clone(),
+                    *body,
+                    Box::new(move |r| {
+                        let label = ctx.borrow_mut().alloc_label();
+                        IR::AppCont(label, Cont::Return, vec![r])
+                    }),
+                )),
+            )
+        }
         _ => panic!("not a lambda"),
     }
 }
 
-pub fn quick_cps(t : BuilderExpr) -> IR{ 
+pub fn quick_cps(t: BuilderExpr) -> IR {
     let ctx = GenTable::new();
     let label = ctx.borrow_mut().alloc_label();
-    cps(ctx,t, Box::new(move |r| IR::AppCont(label, Cont::Return ,vec![r])))
+    cps(
+        ctx,
+        t,
+        Box::new(move |r| IR::AppCont(label, Cont::Return, vec![r])),
+    )
 }
 pub fn cps(ctx: Rc<RefCell<GenTable>>, term: BuilderExpr, k: Box<dyn FnOnce(Atom) -> IR>) -> IR {
     match term {
