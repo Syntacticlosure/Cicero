@@ -1,6 +1,6 @@
 use super::IR;
 use std::collections::HashMap;
-#[derive(Debug,Clone, PartialEq,Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Atom {
     Var(String),
     I32(i32),
@@ -12,7 +12,6 @@ pub enum Atom {
     StringLiteral(String),
     Lam(usize, Vec<String>, Box<IR>),
 }
-
 
 impl Atom {
     pub fn lam(label: usize, args: &[&str], body: IR) -> Self {
