@@ -1,5 +1,3 @@
-use crate::cps_ir::Value;
-
 use super::Atom;
 use std::{cell::RefCell, rc::Rc};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -71,14 +69,14 @@ impl IR {
         let mut cursor = self;
         loop {
             match cursor {
-                IR::App(label, f, mut args, k) => {
+                IR::App(label, f, args, k) => {
                     break unroll(
                         lifted_defs,
                         let_cont_defs,
                         IR::App(label, normalize_atom(f), normalize_atoms(args), k),
                     );
                 }
-                IR::AppCont(label, k, mut args) => {
+                IR::AppCont(label, k, args) => {
                     break unroll(
                         lifted_defs,
                         let_cont_defs,
