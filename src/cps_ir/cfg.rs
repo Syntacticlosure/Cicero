@@ -81,6 +81,34 @@ impl<'a, L: Lattice> NodePool<'a, L> {
         self.nodes[to].predecessors.push(from);
     }
 
+    pub fn get_result_in(&self,n: usize) -> &L {
+        &self.nodes[n].result_in
+    }
+
+    pub fn get_result_out(&self, n: usize) -> &L{
+        &self.nodes[n].result_out
+    }
+
+    pub fn get_prog_entry(&self) -> usize {
+        self.prog_entry
+    }
+
+    pub fn get_prog_exit(&self) -> usize {
+        self.prog_exit 
+    }
+
+    pub fn get_fun_entry(&self,label:usize) -> usize {
+        self.fun_entry_table.get(&label).expect("unrecognized fun entry").clone()
+    }
+
+    pub fn get_fun_exit(&self,label:usize) -> usize {
+        self.fun_exit_table.get(&label).expect("unrecognized fun exit").clone()
+    }
+
+    pub fn get_cont(&self, name:&str) -> usize {
+        self.cont_table.get(name).expect("unrecognized cont name").clone()
+    }
+
     
     fn construct_atom(&mut self, a: &'a Atom) {
         match a {
