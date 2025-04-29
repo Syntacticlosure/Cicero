@@ -1,9 +1,9 @@
-use super::Atom;
+use super::{Atom, builtin_call::BuiltinOp};
 use std::{cell::RefCell, rc::Rc};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum IR {
     LetCont(usize, String, Vec<String>, Box<IR>, Box<IR>),
-    Let(usize, String, String, Vec<Atom>, Box<IR>),
+    Let(usize, String, BuiltinOp, Vec<Atom>, Box<IR>),
     LetVal(usize, String, Atom, Box<IR>),
     If(usize, Atom, Box<IR>, Box<IR>),
     App(usize, Atom, Vec<Atom>, Cont),
@@ -137,7 +137,7 @@ pub enum BuilderExpr {
     StringLiteral(String),
     Lam(Vec<String>, Box<BuilderExpr>),
     App(Box<BuilderExpr>, Vec<BuilderExpr>),
-    PrimApp(String, Vec<BuilderExpr>),
+    PrimApp(BuiltinOp, Vec<BuilderExpr>),
     If(Box<BuilderExpr>, Box<BuilderExpr>, Box<BuilderExpr>),
     Fix(Vec<String>, Vec<BuilderExpr>, Box<BuilderExpr>),
     Let(String, Box<BuilderExpr>, Box<BuilderExpr>),
@@ -174,8 +174,8 @@ impl BuilderExpr {
     pub fn app(f: BuilderExpr, args: Vec<BuilderExpr>) -> Self {
         BuilderExpr::App(Box::new(f), args)
     }
-    pub fn papp(op: &str, args: Vec<BuilderExpr>) -> Self {
-        BuilderExpr::PrimApp(op.to_string(), args)
+    pub fn papp(op: BuiltinOp, args: Vec<BuilderExpr>) -> Self {
+        BuilderExpr::PrimApp(op, args)
     }
     pub fn if_(test: BuilderExpr, then_: BuilderExpr, else_: BuilderExpr) -> Self {
         BuilderExpr::If(Box::new(test), Box::new(then_), Box::new(else_))

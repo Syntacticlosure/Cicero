@@ -1,3 +1,5 @@
+use crate::cps_ir::builtin_call::BuiltinOp;
+
 use super::{BuilderExpr as E, quick_cps};
 use super::{IR, Store, Value, interp};
 use std::collections::HashMap;
@@ -13,14 +15,14 @@ pub fn test1() {
     let fact = E::lam(
         &["x"],
         E::if_(
-            E::papp("i32_leq", vec![E::v("x"), E::i32(1)]),
+            E::papp(BuiltinOp::I32Leq, vec![E::v("x"), E::i32(1)]),
             E::i32(1),
             E::papp(
-                "i32_mul",
+                BuiltinOp::I32Mul,
                 vec![
                     E::app(
                         E::v("fact"),
-                        vec![E::papp("i32_sub", vec![E::v("x"), E::i32(1)])],
+                        vec![E::papp(BuiltinOp::I32Sub, vec![E::v("x"), E::i32(1)])],
                     ),
                     E::v("x"),
                 ],
