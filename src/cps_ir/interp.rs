@@ -1,4 +1,4 @@
-use super::{builtin_call, Atom, Value, IR, Cont};
+use super::{Atom, Cont, IR, Value, builtin_call};
 use std::collections::HashMap;
 
 pub struct Store<'a> {
@@ -6,7 +6,7 @@ pub struct Store<'a> {
     pub count: usize,
 }
 
-impl<'a> Store<'a>{
+impl<'a> Store<'a> {
     pub fn new() -> Store<'a> {
         Store {
             mem: vec![],
@@ -28,7 +28,7 @@ impl<'a> Store<'a>{
     pub fn get_count(&self) -> usize {
         self.count
     }
-    pub fn set_mem(&mut self, idx : usize, v: Value<'a>) -> () {
+    pub fn set_mem(&mut self, idx: usize, v: Value<'a>) -> () {
         self.mem[idx] = v;
     }
 }
@@ -50,7 +50,7 @@ pub fn interp_atom<'a>(
         Atom::Bool(v) => Value::Bool(v.clone()),
         Atom::Char(v) => Value::Char(v.clone()),
         Atom::StringLiteral(v) => Value::StringLiteral(v.clone()),
-        Atom::Lam(_label,args, ir) => Value::Clo(args, ir, env.clone()),
+        Atom::Lam(_label, args, ir) => Value::Clo(args, ir, env.clone()),
     }
 }
 
@@ -80,40 +80,40 @@ pub fn apply_cont_by_name<'a>(
 
 pub fn apply_cont<'a>(
     cont: &'a Cont,
-    values:Vec<Value<'a>>,
+    values: Vec<Value<'a>>,
     env: HashMap<&'a str, usize>,
     store: &mut Store<'a>,
 ) -> Value<'a> {
     match cont {
         Cont::Named(cont_name) => apply_cont_by_name(&cont_name, values, env, store),
-        Cont::Return => values[0].clone()
+        Cont::Return => values[0].clone(),
     }
 }
 
 pub fn interp<'a>(ir: &'a IR, env: HashMap<&'a str, usize>, store: &mut Store<'a>) -> Value<'a> {
     match ir {
-        IR::LetCont(_label,cont_name, args, cont_body, body) => {
+        IR::LetCont(_label, cont_name, args, cont_body, body) => {
             let mut new_env = env.clone();
             new_env.insert(cont_name, store.alloc(Value::Cont(args, cont_body, env)));
             interp(body, new_env, store)
         }
-        IR::Let(_label,bind, prim,args,body) => {
+        IR::Let(_label, bind, prim, args, body) => {
             let args_value = args
                 .iter()
                 .map(|a| interp_atom(a, &env, store))
                 .collect::<Vec<Value<'a>>>();
             let result = builtin_call(prim, args_value);
             let mut new_env = env;
-            new_env.insert(&bind,store.alloc(result));
-            interp(body,new_env,store)
+            new_env.insert(&bind, store.alloc(result));
+            interp(body, new_env, store)
         }
-        IR::LetVal(_label,var, val ,body) => {
-            let value = interp_atom(val,&env,store);
+        IR::LetVal(_label, var, val, body) => {
+            let value = interp_atom(val, &env, store);
             let mut new_env = env;
-            new_env.insert(var,store.alloc(value));
-            interp(body,new_env,store)
+            new_env.insert(var, store.alloc(value));
+            interp(body, new_env, store)
         }
-        IR::If(_label,test, then_, else_) => match interp_atom(test, &env, store) {
+        IR::If(_label, test, then_, else_) => match interp_atom(test, &env, store) {
             Value::Bool(b) => {
                 if b {
                     interp(then_, env, store)
@@ -124,43 +124,41 @@ pub fn interp<'a>(ir: &'a IR, env: HashMap<&'a str, usize>, store: &mut Store<'a
             _ => {
                 panic!("if: test should be a boolean")
             }
-        }
-        IR::App(_label,f, args, cont) => {
+        },
+        IR::App(_label, f, args, cont) => {
             let f_value = interp_atom(f, &env, store);
             let Value::Clo(vars, body, clo_env) = f_value else {
                 panic!("application: not a function");
             };
             let mut new_env = clo_env;
             for (arg, var) in args.iter().zip(vars.iter()) {
-                let val = interp_atom(arg, &env,store);
+                let val = interp_atom(arg, &env, store);
                 new_env.insert(var, store.alloc(val));
             }
-            let result = interp(body, new_env,store);
-            apply_cont(cont, vec![result], env,store)
+            let result = interp(body, new_env, store);
+            apply_cont(cont, vec![result], env, store)
         }
-        IR::Fix(_label,vars, vals,body)  => {
+        IR::Fix(_label, vars, vals, body) => {
             let mut new_env = env;
             let mut offset = store.get_count();
             for var in vars {
                 new_env.insert(&var, store.alloc(Value::Bool(false)));
-            };
-            for val in vals{
-                store.set_mem(offset, interp_atom(val,&new_env,store));
-                offset+=1;
-            };
-            interp(body,new_env, store)
-        }
-        IR::AppCont(_label,cont,args) => {
-            match cont {
-                Cont::Return => {
-                    interp_atom(&args[0],&env,store)
-                }
-                Cont::Named(name) =>{
-                    let values =args.iter().map (|arg| 
-                        interp_atom(arg,&env,store)).collect();
-                    apply_cont_by_name(&name, values, env, store)
-                }
             }
+            for val in vals {
+                store.set_mem(offset, interp_atom(val, &new_env, store));
+                offset += 1;
+            }
+            interp(body, new_env, store)
         }
+        IR::AppCont(_label, cont, args) => match cont {
+            Cont::Return => interp_atom(&args[0], &env, store),
+            Cont::Named(name) => {
+                let values = args
+                    .iter()
+                    .map(|arg| interp_atom(arg, &env, store))
+                    .collect();
+                apply_cont_by_name(&name, values, env, store)
+            }
+        },
     }
 }
